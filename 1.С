@@ -1,0 +1,91 @@
+#include <iostream>
+#include <vector>
+#include <algorithm>
+
+
+void dfs(const std::vector<std::vector<int>> &v, std::vector<char> &used, int currVertex, std::vector<int> &answer) {
+    used[currVertex] = 1;
+    for (int i = 0; i < v[currVertex].size(); ++i) {
+        if (used[v[currVertex][i]] == 0) {
+            dfs(v, used, v[currVertex][i], answer);
+        }
+    }
+    used[currVertex] = 2;
+    answer.push_back(currVertex);
+}
+
+void dfs2(const std::vector<std::vector<int>> &v, std::vector<char> &used, int currVertex,
+          std::vector<int> &componentNum, int currComponentNum) {
+    used[currVertex] = 1;
+    for (int i = 0; i < v[currVertex].size(); ++i) {
+        if (used[v[currVertex][i]] == 0) {
+            dfs2(v, used, v[currVertex][i], componentNum, currComponentNum);
+        }
+    }
+    used[currVertex] = 2;
+    componentNum[currVertex] = currComponentNum;
+}
+
+int main() {
+    int n, m;
+    std::cin >> n >> m;
+    std::vector<std::vector<int>> g(n);
+    std::vector<std::vector<int>> gr(n);
+    for (int i = 0; i < m; ++i) {
+        int a, b;
+        std::cin >> a >> b;
+        a--;
+        b--;
+        g[a].push_back(b);
+        gr[b].push_back(a);
+    }
+    std::vector<int> answer;
+    std::vector<char> used(n, 0);
+    for (int i = 0; i < n; ++i) {
+        if (used[i] == 0) {
+            dfs(gr, used, i, answer);
+        }
+    }
+    std::reverse(answer.begin(), answer.end());
+    for (int i = 0; i < n; ++i) {
+        used[i] = 0;
+    }
+    int currComponentNum = 0;
+    std::vector<int> componentNum(n);
+    for (int i = 0; i < n; ++i) {
+        int v = answer[i];
+        if (used[v] == 0) {
+            dfs2(g, used, v, componentNum, currComponentNum);
+            currComponentNum++;
+        }
+    }
+    std::vector<bool> inDegree(currComponentNum, false);
+    std::vector<bool> outDegree(currComponentNum, false);
+
+    for (int i = 0; i < n; ++i) {
+        for (int j = 0; j < g[i].size(); ++j) {
+            int v = g[i][j];
+            if (componentNum[i] != componentNum[v]) {
+                inDegree[componentNum[v]] = true;
+                outDegree[componentNum[i]] = true;
+            }
+        }
+    }
+    int numOfSources = 0;
+    int numOfDrains = 0;
+    for (int i = 0; i < currComponentNum; ++i) {
+        if (not inDegree[i]) {
+            numOfSources++;
+        }
+        if (not outDegree[i]) {
+            numOfDrains++;
+        }
+    }
+    if (currComponentNum != 1) {
+        std::cout << std::max(numOfSources, numOfDrains);
+    } else {
+        std::cout << 0;
+    }
+    return 0;
+}
+

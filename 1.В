@@ -1,0 +1,54 @@
+ 
+#include <iostream>
+#include <vector>
+#include <algorithm>
+
+void dfs(const std::vector<std::vector<int>> &v, std::vector<char> &used, int currVertex, bool &circle,
+         std::vector<int> &answer) {
+        used[currVertex] = 1;
+        for (int i = 0; i < v[currVertex].size(); ++i) {
+            if (used[v[currVertex][i]] == 1) {
+                circle = true;
+                return;
+            }
+            if (used[v[currVertex][i]] != 2) {
+                dfs(v, used, v[currVertex][i], circle, answer);
+            }
+        }
+        used[currVertex] = 2;
+        answer.push_back(currVertex);
+}
+
+int main() {
+    int n, m;
+    std::cin >> n >> m;
+    std::vector<std::vector<int>> g(n);
+    std::vector<bool> was(n);
+    for (int i = 0; i < m; ++i) {
+        int a, b;
+        std::cin >> a >> b;
+        g[a].push_back(b);
+        was[b] = true;
+    }
+    for (int i = 0; i < n; ++i) {
+        std::sort(g[i].begin(), g[i].end());
+    }
+    std::vector<int> answer;
+    std::vector<char> used(n, 0);
+    bool circle = false;
+    for (int i = 0; i < n && not circle; ++i) {
+        if (not was[i]) {
+            dfs(g, used, i, circle, answer);
+        }
+    }
+    std::reverse(answer.begin(), answer.end());
+    if (not circle && not answer.empty()) {
+        std::cout << "YES" << std::endl;
+        for (int i : answer) {
+            std::cout << i << " ";
+        }
+    } else {
+        std::cout << "NO";
+    }
+    return 0;
+}
