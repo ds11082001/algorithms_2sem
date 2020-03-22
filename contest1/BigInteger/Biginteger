@@ -1,0 +1,700 @@
+ #include <iostream>
+#include <vector>
+#include <string>
+
+class BigInteger {
+private:
+    char sign = 1;
+    std::vector<int> digits;
+public:
+    explicit BigInteger(std::string s) {
+        if (s[0] == '-') {
+            sign = -1;
+            s = s.substr(1, s.size() - 1);
+        }
+        reverseString(s, 0, s.size());
+        for (int i = 0; i < int(s.size()); i += 9) {
+            if (i + 9 < int(s.size())) {
+                reverseString(s, i, i + 9);
+            } else {
+
+                reverseString(s, i, s.size());
+            }
+            digits.push_back(atoi(s.substr(i, std::min(int(s.size()) - i, 9)).c_str()));
+        }
+        removeZeros();
+    }
+
+    BigInteger(long long l) : BigInteger(std::to_string(l)) {}
+
+    BigInteger(long i) : BigInteger((long long) i) {}
+
+    BigInteger(int l) : BigInteger((long long) l) {}
+
+    BigInteger(size_t i) : BigInteger((int) i) {}
+
+    BigInteger(char sign, std::vector<int> digits) {
+        this->sign = sign;
+        this->digits = digits;
+    }
+
+    BigInteger() {
+        this->sign = 1;
+        this->digits = std::vector<int>(1, 0);
+    }
+
+    std::string toString() const {
+        std::string s = "";
+        if (sign == -1) {
+            s += "-";
+        }
+        for (int i = digits.size() - 1; i >= 0; --i) {
+            std::string currDigit = std::to_string(digits[i]);
+            if (i != int(digits.size() - 1) && int(currDigit.size()) != 9) {
+                while (currDigit.size() != 9) {
+                    currDigit = "0" + currDigit;
+                }
+            }
+            s += currDigit;
+        }
+        return s;
+    }
+
+    static void reverseVector(std::vector<int> &v, int begin, int end) {
+        for (int i = begin; i < (int) (begin + end) / 2; ++i) {
+            std::swap(v[i], v[end + begin - i - 1]);
+        }
+    }
+
+    static void reverseString(std::string &s, int begin, int end) {
+        for (int i = begin; i < (int) (begin + end) / 2; ++i) {
+            std::swap(s[i], s[end + begin - i - 1]);
+        }
+    }
+
+    void removeZeros() {
+        while (digits.size() > 1 && digits.back() == 0) {
+            digits.pop_back();
+        }
+        if (digits.size() == 1 && digits[0] == 0) {
+            sign = 1;
+        }
+    }
+
+    char getSign() {
+        return sign;
+    }
+
+    BigInteger abs() const {
+        BigInteger a = *this;
+        if (a.sign == -1) {
+            a.sign = 1;
+        }
+        return a;
+    }
+
+    bool lessByAbs(const BigInteger &a) {
+        if (int(digits.size()) > int(a.digits.size())) {
+            return false;
+        }
+        if (int(digits.size()) < int(a.digits.size())) {
+            return true;
+        }
+        for (int i = int(digits.size()) - 1; i >= 0; --i) {
+            if (digits[i] > a.digits[i]) {
+                return false;
+            }
+            if (digits[i] < a.digits[i]) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    friend bool operator<(const BigInteger &a, const BigInteger &b);
+
+    friend bool operator>(const BigInteger &a, const BigInteger &b);
+
+    friend bool operator<=(const BigInteger &a, const BigInteger &b);
+
+
+    BigInteger operator-() const {
+        BigInteger a = *this;
+        if (a != 0) {
+            a.sign *= -1;
+        }
+        return a;
+    }
+
+    BigInteger operator+() {
+        return *this;
+    }
+
+    BigInteger &operator+=(const BigInteger &a) {
+        if (sign * a.sign == 1) {
+            bool carry = false;
+            for (int i = 0; i < int(std::min(digits.size(), a.digits.size())); ++i) {
+                digits[i] += a.digits[i];
+                if (carry) {
+                    digits[i] += 1;
+                    digits[i - 1] -= 1e9;
+                }
+                carry = digits[i] >= 1e9;
+            }
+            for (int i = int(std::min(digits.size(), a.digits.size()));
+            i < int(std::max(digits.size(), a.digits.size())); ++i) {
+                if (digits.size() < a.digits.size()) {
+                    digits.push_back(a.digits[i]);
+                }
+                if (carry) {
+                    digits[i] += 1;
+                    digits[i - 1] -= 1e9;
+                }
+                carry = digits[i] >= 1e9;
+                if (not carry && i > int(a.digits.size())) {
+                    break;
+                }
+            }
+            if (carry) {
+                digits.back() -= 1e9;
+                digits.push_back(1);
+            }
+            removeZeros();
+        } else {
+            operator-=(-a);
+            removeZeros();
+        }
+        return *this;
+    }
+
+    BigInteger &operator-=(const BigInteger &a) {
+        if (sign * a.sign == 1 || a.toString() == "0") {
+            bool carry = false;
+            if (lessByAbs(a)) {
+                BigInteger c = *this;
+                *this = a;
+                *this -= c;
+                sign *= -1;
+                return *this;
+            } else {
+                int i;
+                for (i = 0; i < int(a.digits.size()); ++i) {
+                    digits[i] -= a.digits[i];
+                    if (carry) {
+                        digits[i] -= 1;
+                    }
+                    if (digits[i] < 0) {
+                        digits[i] += 1e9;
+                        carry = true;
+                    } else {
+                        carry = false;
+                    }
+                }
+                if (carry) {
+                    digits[i] -= 1;
+                }
+                removeZeros();
+            }
+        } else {
+            operator+=(-a);
+            removeZeros();
+        }
+        for (int i = 0; i < int(digits.size()); ++i) {
+            if (digits[i] < 0 && i + 1 < int(digits.size())) {
+                digits[i] += 1e9;
+                digits[i + 1] -= 1;
+            }
+        }
+        return *this;
+    }
+
+    friend BigInteger operator+(const BigInteger &a, const BigInteger &b);
+
+    friend BigInteger operator+(int a, const BigInteger &b);
+
+    friend BigInteger operator+(const BigInteger &a, int b);
+
+    friend BigInteger operator-(const BigInteger &a, const BigInteger &b);
+
+    friend BigInteger operator-(int a, const BigInteger &b);
+
+    friend BigInteger operator-(const BigInteger &a, int b);
+
+    BigInteger operator++(int) {
+        BigInteger a = *this;
+        *this += 1;
+        return a;
+    }
+
+    BigInteger operator--(int) {
+        BigInteger a = *this;
+        *this -= 1;
+        return a;
+    }
+
+    BigInteger &operator++() {
+        return *this += 1;
+    }
+
+    BigInteger &operator--() {
+        return *this -= 1;
+    }
+
+    static std::string caratsuba(std::string s1, std::string s2) {
+        if (s1 == "0" || s2 == "0") {
+            return "0";
+        }
+        int sz1 = s1.size();
+        int sz2 = s2.size();
+        int sz = std::max(sz1, sz2);
+        if (sz1 + sz2 <= 18) {
+            std::string res = std::to_string(stoull(s1) * stoull(s2));
+            return res;
+        }
+        if (sz % 2 != 0) {
+            ++sz;
+        }
+        int prevSz = sz / 2;
+        std::string s1Left = "0", s1Right = "0", s2Left = "0", s2Right = "0";
+        if (sz1 <= prevSz) {
+            s1Right = s1;
+        } else {
+            s1Right = s1.substr(sz1 - prevSz, sz1);
+            s1Left = s1.substr(0, sz1 - prevSz);
+        }
+        if (sz2 <= prevSz) {
+            s2Right = s2;
+        } else {
+            s2Right = s2.substr(sz2 - prevSz, sz2);
+            s2Left = s2.substr(0, sz2 - prevSz);
+        }
+        std::string first = caratsuba(s1Left, s2Left);
+        std::string second = caratsuba(s1Right, s2Right);
+        BigInteger firstLeft(s1Left);
+        BigInteger firstRight(s1Right);
+        BigInteger secondLeft(s2Left);
+        BigInteger secondRight(s2Right);
+        firstLeft += firstRight;
+        secondLeft += secondRight;
+        std::string third = caratsuba(firstLeft.toString(), secondLeft.toString());
+        third = (BigInteger(third) - BigInteger(second) - BigInteger(first)).toString();
+        for (int i = 0; i < sz; ++i) {
+            first += "0";
+        }
+        for (int i = 0; i < prevSz; ++i) {
+            third += "0";
+        }
+        BigInteger res1(first);
+        BigInteger res2(second);
+        BigInteger res3(third);
+        return (res1 + res2 + res3).toString();
+    }
+
+    BigInteger &operator*=(const BigInteger &a) {
+        char sign1 = sign;
+        char sign2 = a.sign;
+        std::string s1 = toString();
+
+        std::string s2 = a.toString();
+        if (s1[0] == '-') {
+            s1 = s1.substr(1, s1.size() - 1);
+        }
+        if (s2[0] == '-') {
+            s2 = s2.substr(1, s2.size() - 1);
+        }
+        std::string res = (caratsuba(s1, s2));
+        char signAfterOperation = sign1 * sign2;
+        if (signAfterOperation == -1) {
+            res = "-" + res;
+        }
+        *this = BigInteger(res);
+        return *this;
+    }
+
+    friend BigInteger operator*(const BigInteger &a, const BigInteger &b);
+
+    static int binSearch(const BigInteger &a, const BigInteger &b) {
+        int left = 0;
+        int right = 1e9;
+        while (right - left > 1) {
+            int c = (left + right) / 2;
+            if (c * b <= a) {
+                left = c;
+            } else {
+                right = c;
+            }
+        }
+        return left;
+    }
+
+    BigInteger &operator/=(const BigInteger &a) {
+        if (lessByAbs(a)) {
+            *this = 0;
+            return *this;
+        }
+        if (a.toString() == "0") {
+            *this = 0;
+            return *this;
+        }
+        if (a.toString() == "1") {
+            return *this;
+        }
+        char sign1 = sign;
+        char sign2 = a.sign;
+        char resSign = sign1 * sign2;
+        *this = abs();
+        BigInteger absA = a.abs();
+        int i = digits.size() - a.digits.size();
+        std::vector<int> v;
+        for (int j = i; j < int(digits.size()); ++j) {
+            v.push_back(digits[j]);
+        }
+        BigInteger b = BigInteger(1, v);
+        if (b < absA) {
+            reverseVector(b.digits, 0, b.digits.size());
+            --i;
+            b.digits.push_back(digits[i]);
+            reverseVector(b.digits, 0, b.digits.size());
+        }
+        std::vector<int> res;
+        while (i >= 0) {
+            res.push_back(binSearch(b, absA));
+            BigInteger c = BigInteger(res.back());
+            c *= absA;
+            b -= c;
+            --i;
+            if (i >= 0) {
+                reverseVector(b.digits, 0, b.digits.size());
+                b.digits.push_back(digits[i]);
+                reverseVector(b.digits, 0, b.digits.size());
+                b.removeZeros();
+            }
+        }
+        reverseVector(res, 0, res.size());
+        *this = BigInteger(resSign, res);
+        return *this;
+    }
+
+    friend BigInteger operator/(const BigInteger &a, const BigInteger &b);
+
+    BigInteger &operator%=(const BigInteger &a) {
+        *this -= *this / a * a;
+        return *this;
+    }
+
+    friend BigInteger operator%(const BigInteger &a, const BigInteger &b);
+
+    friend std::istream &operator>>(std::istream &istream, BigInteger &bigInt) {
+        std::string s;
+        istream >> s;
+        bigInt = BigInteger(s);
+        return istream;
+    }
+
+    friend std::ostream &operator<<(std::ostream &ostream, const BigInteger bigInt) {
+        return ostream << bigInt.toString();
+    }
+
+    friend BigInteger operator ""_bi(const char *p, size_t);
+
+    operator bool() {
+        return toString() != "0";
+    }
+
+};
+
+
+bool operator<(const BigInteger &a, const BigInteger &b) {
+    if (a.sign > b.sign) {
+        return false;
+    }
+    if (a.sign < b.sign) {
+        return true;
+    }
+    if (a.sign * int(a.digits.size()) > b.sign * int(b.digits.size())) {
+        return false;
+    }
+    if (a.sign * int(a.digits.size()) < b.sign * int(b.digits.size())) {
+        return true;
+    }
+    for (int i = int(a.digits.size()) - 1; i >= 0; --i) {
+        if (a.sign * a.digits[i] > b.sign * b.digits[i]) {
+            return false;
+        }
+        if (a.sign * a.digits[i] < b.sign * b.digits[i]) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool operator>(const BigInteger &a, const BigInteger &b) {
+    return operator<(b, a);
+}
+
+bool operator==(const BigInteger &a, const BigInteger &b) {
+    return not operator<(a, b) && not operator>(a, b);
+}
+
+bool operator<=(const BigInteger &a, const BigInteger &b) {
+    return not operator>(a, b);
+}
+
+bool operator>=(const BigInteger &a, const BigInteger &b) {
+    return not operator<(a, b);
+}
+
+bool operator!=(const BigInteger &a, const BigInteger &b) {
+    return not operator==(a, b);
+}
+
+
+BigInteger operator+(const BigInteger &a, const BigInteger &b) {
+    BigInteger c = a;
+    return c += b;
+}
+
+BigInteger operator+(int a, const BigInteger &b) {
+    return BigInteger(a) + b;
+}
+
+BigInteger operator+(const BigInteger &a, int b) {
+    return a + BigInteger(b);
+}
+
+BigInteger operator-(const BigInteger &a, const BigInteger &b) {
+    BigInteger c = a;
+    return c -= b;
+}
+
+BigInteger operator-(int a, const BigInteger &b) {
+    return BigInteger(a) - b;
+}
+
+BigInteger operator-(const BigInteger &a, int b) {
+    return a - BigInteger(b);
+}
+
+BigInteger operator*(const BigInteger &a, const BigInteger &b) {
+    BigInteger c = a;
+    c *= b;
+    return c;
+}
+
+BigInteger operator/(const BigInteger &a, const BigInteger &b) {
+    BigInteger c = a;
+    c /= b;
+    return c;
+}
+
+BigInteger operator%(const BigInteger &a, const BigInteger &b) {
+    BigInteger c = a;
+    c %= b;
+    return c;
+}
+
+
+BigInteger abs(const BigInteger &a) {
+    return a < 0 ? -a : a;
+}
+
+BigInteger operator ""_bi(const char *p, size_t) {
+    return BigInteger(std::string(p));
+}
+
+
+
+class Rational {
+private:
+    char sign;
+    BigInteger numerator;
+    BigInteger denominator;
+
+public:
+    explicit Rational(BigInteger numerator, BigInteger denominator) {
+        this->sign = numerator.getSign() * denominator.getSign();
+        this->numerator = numerator.abs();
+        this->denominator = denominator.abs();
+        reducing();
+    }
+
+    Rational(BigInteger a) {
+        sign = a.getSign();
+        numerator = a;
+        denominator = 1;
+    }
+
+    Rational(int a) {
+        sign = a >= 0 ? 1 : -1;
+        numerator = std::abs(a);
+        denominator = 1;
+    }
+    Rational() {
+        sign = 1;
+        numerator = 0;
+        denominator = 1;
+    }
+
+    BigInteger evklid() {
+        BigInteger numeratorCopy = numerator;
+        BigInteger denominatorCopy = denominator;
+        BigInteger q;
+        if (numeratorCopy > denominatorCopy) {
+            q = numeratorCopy % denominatorCopy;
+        } else {
+            q = denominatorCopy % numeratorCopy;
+        }
+        while (q != BigInteger(0)) {
+            q = std::max(numeratorCopy, denominatorCopy) % std::min(numeratorCopy, denominatorCopy);
+            if (q != BigInteger(0)) {
+                (numeratorCopy > denominatorCopy ? numeratorCopy : denominatorCopy) = q;
+            }
+        }
+        return std::min(numeratorCopy, denominatorCopy);
+    }
+
+    void reducing() {
+        if (numerator == BigInteger(0)) {
+            denominator = 1;
+            return;
+        }
+        BigInteger nod = evklid();
+        denominator /= nod;
+        numerator /= nod;
+    }
+
+    std::string toString() {
+        std::string s = "";
+        if (sign == -1) {
+            s += "-";
+        }
+        s += abs(numerator).toString();
+        if (abs(denominator) > BigInteger(1)) {
+            s += "/" + abs(denominator).toString();
+        }
+        return s;
+    }
+
+    std::string asDecimal (size_t precision = 0) {
+        std::string s = numerator.toString();
+        for (int i = 0; i < int(precision); ++i) {
+            s += "0";
+        }
+        BigInteger res = BigInteger(s) / denominator;
+        if (precision == 0) {
+            return res.toString();
+        }
+        BigInteger balance = BigInteger(s) % denominator;
+        if (denominator <= BigInteger(2) * balance) {
+            ++res;
+        }
+        s = res.toString();
+        std::string whole = (s.size() > precision ? s.substr(0, s.size() - precision) : "0");
+        std::string fractional = (s.size() > precision ? s.substr(s.size() - precision, s.size()) :
+                                  std::string(precision - s.size(), '0') + s);
+        return (sign > 0 ? "" : "-") + whole + "." + fractional;
+    }
+
+    Rational operator-() const {
+        Rational a = *this;
+        if (a.toString() != "0") {
+            a.sign *= -1;
+        }
+        return a;
+    }
+
+    friend bool operator<(const Rational &a, const Rational &b);
+
+    Rational &operator+=(const Rational &a) {
+        numerator *= BigInteger(sign) * a.denominator;
+        numerator += a.numerator * denominator * BigInteger(a.sign);
+        denominator *= a.denominator;
+        sign = numerator.getSign() * denominator.getSign();
+        numerator = numerator.abs();
+        denominator = denominator.abs();
+        reducing();
+        return *this;
+    }
+
+    friend Rational operator+(const Rational &a, const Rational &b);
+
+    Rational &operator-=(const Rational &a) {
+        numerator *= BigInteger(sign) * a.denominator;
+        numerator -= a.numerator * denominator * BigInteger(a.sign);
+        denominator *= a.denominator;
+        sign = numerator.getSign() * denominator.getSign();
+        numerator = numerator.abs();
+        denominator = denominator.abs();
+        reducing();
+        return *this;
+    }
+
+    friend Rational operator-(const Rational &a, const Rational &b);
+
+    Rational &operator*=(const Rational &a) {
+        sign *= a.sign;
+        numerator *= a.numerator;
+        denominator *= a.denominator;
+        numerator = numerator.abs();
+        denominator = denominator.abs();
+        reducing();
+        return *this;
+    }
+    friend Rational operator*(const Rational &a, const Rational &b);
+
+    Rational &operator/=(const Rational &a) {
+        numerator *= a.denominator;
+        denominator *= a.numerator;
+        sign *= a.sign;
+        numerator = numerator.abs();
+        denominator = denominator.abs();
+        reducing();
+        return *this;
+    }
+    friend Rational operator/(const Rational &a, const Rational &b);
+};
+
+bool operator<(const Rational &a, const Rational &b) {
+    return a.sign * a.numerator * b.denominator < b.sign * a.denominator * b.numerator;
+}
+
+bool operator>(const Rational &a, const Rational &b) {
+    return b < a;
+}
+
+bool operator==(const Rational &a, const Rational &b) {
+    return not(a > b && a < b);
+}
+
+bool operator<=(const Rational &a, const Rational &b) {
+    return not(a > b);
+}
+
+bool operator>=(const Rational &a, const Rational &b) {
+    return not(a < b);
+}
+
+bool operator!=(const Rational &a, const Rational &b) {
+    return not(a == b);
+}
+
+Rational operator+(const Rational &a, const Rational &b) {
+    Rational c = a;
+    return c += b;
+}
+
+Rational operator-(const Rational &a, const Rational &b) {
+    Rational c = a;
+    return c -= b;
+}
+
+Rational operator*(const Rational &a, const Rational &b) {
+    Rational c = a;
+    return c *= b;
+}
+
+Rational operator/(const Rational &a, const Rational &b) {
+    Rational c = a;
+    return c /= b;
+}
+
