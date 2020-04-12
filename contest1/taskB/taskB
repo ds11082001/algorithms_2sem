@@ -1,0 +1,66 @@
+#include <iostream>
+#include <vector>
+#include <algorithm>
+
+enum colors : char {
+    white = 0,
+    gray = 1,
+    black = 2
+};
+
+void dfs(const std::vector<std::vector<int>> &v, std::vector<char> &used, int currVertex, bool &circle,
+         std::vector<int> &answer) {
+    used[currVertex] = gray;
+    for (int i = 0; i < v[currVertex].size(); ++i) {
+        if (used[v[currVertex][i]] == gray) {
+            circle = true;
+            return;
+        }
+        if (used[v[currVertex][i]] != black) {
+            dfs(v, used, v[currVertex][i], circle, answer);
+        }
+    }
+    used[currVertex] = black;
+    answer.push_back(currVertex);
+}
+
+void input(std::vector<std::vector<int>> &g, std::vector<bool> was, int m) {
+    for (int i = 0; i < m; ++i) {
+        int a, b;
+        std::cin >> a >> b;
+        g[a].push_back(b);
+        was[b] = true;
+    }
+}
+
+void findCircleOrAnswer(std::vector<std::vector<int>> &g, std::vector<bool> &was, bool circle, std::vector<char> &used,
+                        std::vector<int> &answer, int n) {
+    for (int i = 0; i < n && not circle; ++i) {
+        if (not was[i]) {
+            dfs(g, used, i, circle, answer);
+        }
+    }
+    std::reverse(answer.begin(), answer.end());
+    if (not circle && not answer.empty()) {
+        std::cout << "YES" << std::endl;
+        for (int i : answer) {
+            std::cout << i << " ";
+        }
+    } else {
+        std::cout << "NO";
+    }
+}
+
+int main() {
+    int n, m;
+    std::cin >> n >> m;
+    std::vector<std::vector<int>> g(n);
+    std::vector<bool> was(n);
+    input(g, was, m);
+    std::vector<int> answer;
+    std::vector<char> used(n, white);
+    bool circle = false;
+    findCircleOrAnswer(g, was, circle, used, answer, n);
+    return 0;
+}
+
