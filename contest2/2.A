@@ -1,0 +1,47 @@
+#include <iostream>
+#include <queue>
+#include <vector>
+
+// Напишем Дейкстру с очередью с приоритетом, при этом рассчитывать, между какими вершинами
+// есть ребра в графе, будем прямо в функции. Для эффективного сравнения элементов в очереди
+// напишем структуру ComparePairs.
+
+
+struct ComparePairs {
+    bool operator()(std::pair<int, int> x, std::pair<int, int> y) {
+        return x.second > y.second;
+    }
+};
+
+int dijkstra(int a, int b, int m, int x, int y) {
+    std::vector<int> dist(m, 1e9);
+    dist[x] = 0;
+    std::priority_queue<std::pair<int, int>, std::vector<std::pair<int, int>>, ComparePairs> q;
+    q.push(std::make_pair(x, 0));
+    while (not q.empty()) {
+        long long curVertex = q.top().first;
+        int curDist = q.top().second;
+        q.pop();
+        if (curDist > dist[curVertex]) {
+            continue;
+        }
+        long long to = (curVertex + 1) % m;
+        if (dist[curVertex] + a < dist[to]) {
+            dist[to] = dist[curVertex] + a;
+            q.push(std::make_pair(to, dist[to]));
+        }
+        to = (curVertex * curVertex + 1) % m;
+        if (dist[curVertex] + b < dist[to]) {
+            dist[to] = dist[curVertex] + b;
+            q.push(std::make_pair(to, dist[to]));
+        }
+    }
+    return dist[y];
+}
+
+int main() {
+    int a, b, m, x, y;
+    std::cin >> a >> b >> m >> x >> y;
+    std::cout << dijkstra(a, b, m, x, y);
+    return 0;
+}
