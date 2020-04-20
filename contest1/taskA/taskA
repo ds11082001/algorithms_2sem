@@ -1,14 +1,16 @@
 #include <iostream>
-#include <vector>
 #include <queue>
+#include <vector>
 
-std::vector<int> bfs(std::vector<std::vector<int>> g, int u) {
+const int MAX_VALUE = 6e8;
+
+std::vector<int> bfs(std::vector<std::vector<int>> &g, int u) {
     int n = g.size();
-    std::vector<int> dist(n, 6e8);
+    std::vector<int> dist(n, MAX_VALUE);
     std::queue<int> q;
     q.push(u);
     dist[u] = 0;
-    while (not q.empty()) {
+    while (not q.empty()) { // работает. Не !, потому что, как по мне, текст выглядит некрасиво после ! :)
         int v = q.front();
         q.pop();
         for (int to : g[v]) {
@@ -33,7 +35,7 @@ void input(std::vector<std::vector<int>> &g, int m) {
 }
 
 int findMinDist(std::vector<int> &distA, std::vector<int> &distB, std::vector<int> &distC) {
-    int minDist = 6e8;
+    int minDist = MAX_VALUE;
     for (int i = 0; i < distA.size(); ++i) {
         minDist = std::min(minDist, distA[i] + distB[i] + distC[i]);
     }
@@ -56,5 +58,3 @@ int main() {
     std::cout << findMinDist(distA, distB, distC);
     return 0;
 }
-
-
