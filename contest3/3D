@@ -1,0 +1,110 @@
+#include <algorithm>
+#include <iostream>
+#include <vector>
+
+// Решение такое: если 2 плитки 1*1 не дороже, чем плитка 1*2, то нам выгоднее
+// всего ставить плитки 1*1. В таком случае ответом будет кол-во сломанных
+// клеток, умноженное на стоимость плитки 1*1. Иначе нам выгодно поставить
+// как можно больше плиток 1*2. Разделим мост на 2 доли: "черные" и "белые"
+// клетки, которые будут располагаться как на шахматной доске. Проведем ребра
+// между вершинами (клетками) <=> они соседние и они сломаны. Эти клетки разных
+// цветов, т. к. соседние клетки на шахматной доске всегда разных цветов, т. е.
+// ребра графа только между разными долями. Количество плиток 1*2, которые мы
+// можем взять, - это количество паросочетаний в таком графе, т. к. если мы уже
+// положили на вершину клетку 1*2, то еще одну мы положить не сможем, т. е. из 
+// каждой вершины мы можем взять только по одному ребру. Воспользуемся алго
+// Куна для нахождения мах паросочетания, и ответом в таком случае будет
+// мах-паросочетание * стоимость 1*2 + (кол-во сломанных клеток -
+// 2 * мах-паросочетание) * стоимость 1*1.
+
+int input(int n, int m, std::vector<std::string> &bridge) {
+    std::string s;
+    int cnt = 0;
+    for (int i = 0; i < n; ++i) {
+        std::cin >> s;
+        bridge.push_back(s);
+        for (int j = 0; j < m; ++j) {
+            if (s[j] == '*') {
+                ++cnt;
+            }
+        }
+    }
+    return cnt;
+}
+
+std::vector<std::vector<std::vector<std::pair<int, int>>>> convertToGraph(const std::vector<std::string> &bridge,
+        int n, int m) {
+    std::vector<std::vector<std::vector<std::pair<int, int>>>> graph(n,
+            std::vector<std::vector<std::pair<int, int>>>(m));
+    for (int i = 0; i < n; ++i) {
+        for (int j = 0; j < m; ++j) {
+            if (bridge[i][j] == '*') {
+                if (i + 1 < n && bridge[i + 1][j] == '*') {
+                    graph[i][j].push_back({i + 1, j});
+                    graph[i + 1][j].push_back({i, j});
+                }
+                if (j + 1 < m && bridge[i][j + 1] == '*') {
+                    graph[i][j].push_back({i, j + 1});
+                    graph[i][j + 1].push_back({i, j});
+                }
+            }
+        }
+    }
+    return graph;
+}
+
+bool checkKuhn(int i, int j, int n, int m, std::vector<std::vector<std::vector<std::pair<int, int>>>> &graph,
+        std::vector<std::vector<std::pair<int, int>>> &mt, std::vector<std::vector<char>> &used) {
+    if (used[i][j]) {
+        return false;
+    }
+    used[i][j] = 1;
+    for (std::pair<int, int> to: graph[i][j]) {
+        std::pair<int, int> next_vertex = mt[to.first][to.second];
+        if (next_vertex == std::make_pair(-1, -1) || checkKuhn(next_vertex.first, next_vertex.second,
+                n, m, graph, mt, used)) {
+            mt[to.first][to.second] = std::make_pair(i, j);
+            return true;
+        }
+    }
+    return false;
+}
+
+int kuhn(std::vector<std::vector<std::vector<std::pair<int, int>>>> &graph, int n, int m) {
+    std::vector<std::vector<char>> used(n, std::vector<char>(m, 0));
+    std::vector<std::vector<std::pair<int, int>>> mt(n, std::vector<std::pair<int, int>>
+    (m, {-1, -1}));
+    int cnt = 0;
+    for (int i = 0; i < n; i += 2) {
+        for (int j = 0; j < m; j += 2) {
+            if (checkKuhn(i, j, n, m, graph, mt, used)) {
+                ++cnt;
+                used.assign(n, std::vector<char>(m, 0));
+            }
+        }
+    }
+    for (int i = 1; i < n; i += 2) {
+        for (int j = 1; j < m; j += 2) {
+            if (checkKuhn(i, j, n, m, graph, mt, used)) {
+                ++cnt;
+                used.assign(n, std::vector<char>(m, 0));
+            }
+        }
+    }
+    return cnt;
+}
+
+int main() {
+    int n, m, a, b;
+    std::cin >> n >> m >> a >> b;
+    std::vector<std::string> bridge;
+    int count_of_empty = input(n, m, bridge);
+    if (2 * b < a) {
+        std::cout << count_of_empty * b;
+    } else {
+        std::vector<std::vector<std::vector<std::pair<int, int>>>> graph = convertToGraph(bridge, n, m);
+        int count_of_2 = kuhn(graph, n, m);
+        std::cout << count_of_2 * a + (count_of_empty - 2 * count_of_2) * b;
+    }
+    return 0;
+}
