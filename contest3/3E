@@ -1,0 +1,158 @@
+#include <algorithm>
+#include <iostream>
+#include <map>
+#include <stack>
+#include <vector>
+
+// Чтобы Шрек и Осел могли двигаться по разным дорожкам из s в t, необходимо,
+// чтобы поток из s в t был >= 2. Для поиска потока используем алго
+// Форда-Фалкерсона. Для восстановления пути Осла и Шрека проходим dfs'ом по
+// потоку через ребра. Если поток положительный, значит, есть дорога.
+
+using std::vector;
+
+const int MAX_VALUE = 1e9;
+
+void dfs(int v, int t, std::map<int, vector<vector<int>>> &edges, vector<int> &prev) {
+    if (v == t) {
+        return;
+    }
+    for (auto i : edges[v]) {
+        if (i[2] > 0) {
+            prev[i[0]] = v;
+            dfs(i[0], t, edges, prev);
+            break;
+        }
+    }
+}
+
+std::map<int, vector<vector<int>>> input(int m) {
+    std::map<int, vector<vector<int>>> edges; // в первом аргументе map'а 
+    // хранится начальная вершина, во втором - конечная вершина, пропускная 
+    // способность в текущей остаточной сети и текущий поток соответственно.
+    int u, v;
+    for (int i = 0; i < m; ++i) {
+        std::cin >> u >> v;
+        edges[u - 1].push_back({v - 1, 1, 0});
+    }
+    return edges;
+}
+
+int findPath(int s, int t, std::map<int, vector<std::vector<int>>> &edges, vector<int> &prev, vector<int> &flow) {
+    std::stack<int> st;
+    st.push(s);
+    int cur_vertex;
+    flow[s] = MAX_VALUE;
+    while (prev[t] == -1 && not st.empty()) {
+        cur_vertex = st.top();
+        st.pop();
+        for (int i = 0; i < edges[cur_vertex].size(); ++i) {
+            int next_vertex = edges[cur_vertex][i][0];
+            if (edges[cur_vertex][i][1] > 0 && flow[next_vertex] == 0) {
+                st.push(next_vertex);
+                prev[next_vertex] = cur_vertex;
+                if (edges[cur_vertex][i][1] > 0 && flow[next_vertex] == 0) {
+                    flow[next_vertex] = edges[cur_vertex][i][1];
+                } else {
+                    flow[next_vertex] = flow[cur_vertex];
+                }
+            }
+        }
+    }
+    if (prev[t] == -1) {
+        return 0;
+    }
+    cur_vertex = t;
+    while (cur_vertex != s) {
+        int v = prev[cur_vertex];
+        bool used = false;
+        for (auto &i : edges[v]) {
+            if (i[0] == cur_vertex) {
+                i[1] -= flow[t];
+                i[2] += flow[t];
+                used = true;
+                break;
+            }
+        }
+        if (not used) {
+            edges[v].push_back({cur_vertex, -flow[t], flow[t]});
+        }
+        used = false;
+        for (auto &i : edges[cur_vertex]) {
+            if (i[0] == v) {
+                i[1] += flow[t];
+                i[2] -= flow[t];
+                used = true;
+                break;
+            }
+        }
+        if (not used) {
+            edges[cur_vertex].push_back({v, flow[t], -flow[t]});
+        }
+        cur_vertex = v;
+    }
+    return flow[t];
+}
+
+void fordFalkerson(int s, int t, int n, std::map<int, vector<vector<int>>> &edges, vector<int> &prev,
+                   vector<int> &flow) {
+    int max_flow = 0;
+    int add_flow;
+    int cur_vertex;
+    vector<vector<int>> answer;
+    do {
+        prev.assign(n, -1);
+        flow.assign(n, 0);
+
+        add_flow = findPath(s, t, edges, prev, flow);
+        max_flow += add_flow;
+        for (int i = 0; i < add_flow; ++i) {
+            cur_vertex = t;
+            while (cur_vertex != s) {
+                int v = prev[cur_vertex];
+                flow[v] += add_flow;
+                flow[cur_vertex] -= add_flow;
+                cur_vertex = v;
+            }
+        }
+    } while (add_flow > 0 && max_flow < 2);
+    if (max_flow >= 2) {
+        std::cout << "YES" << std::endl;
+        for (int i = 0; i < 2; ++i) {
+            vector<int> path(n, -1);
+            dfs(s, t, edges, path);
+            vector<int> one_of_answers;
+            one_of_answers.push_back(t);
+            for (int j = t; j != s; j = path[j]) {
+                int vertex = path[j];
+                for (auto &k : edges[vertex]) {
+                    if (k[0] == j) {
+                        --k[2];
+                        break;
+                    }
+                }
+                one_of_answers.push_back(vertex);
+            }
+            answer.push_back(one_of_answers);
+            std::reverse(answer[i].begin(), answer[i].end());
+            for (auto j: answer[i]) {
+                std::cout << j + 1 << " ";
+            }
+            std::cout << std::endl;
+        }
+    } else {
+        std::cout << "NO" << std::endl;
+    }
+}
+
+int main() {
+    int n, m, s, t;
+    std::cin >> n >> m >> s >> t;
+    --s;
+    --t;
+    std::map<int, vector<vector<int>>> edges = input(m);
+    vector<int> prev(n, -1);
+    vector<int> flow(n, 0);
+    fordFalkerson(s, t, n, edges, prev, flow);
+    return 0;
+}
