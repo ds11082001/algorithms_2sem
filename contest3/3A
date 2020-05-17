@@ -1,0 +1,58 @@
+#include <iostream>
+#include <queue>
+#include <vector>
+
+
+std::vector<std::vector<std::pair<int, int>>> input(int n, int m) {
+    int v, to, cost;
+    std::vector<std::vector<std::pair<int, int>>> graph(n);
+    for (int i = 0; i < m; ++i) {
+        std::cin >> v >> to >> cost;
+        --v;
+        --to;
+        graph[v].push_back(std::make_pair(to, cost));
+        graph[to].push_back(std::make_pair(v, cost));
+    }
+    return graph;
+}
+
+struct ComparePairs {
+    bool operator()(std::pair<int, int> x, std::pair<int, int> y) {
+        return x.second > y.second;
+    }
+};
+
+
+int prima(const std::vector<std::vector<std::pair<int, int>>> &graph) {
+    int n = graph.size();
+    int weight = 0;
+    std::vector<char> used(n, 0);
+    std::priority_queue<std::pair<int, int>, std::vector<std::pair<int, int>>, ComparePairs> q;
+    q.push({0, 0});
+    while (not q.empty()) {
+        int curVertex = q.top().first;
+        int dist = q.top().second;
+        q.pop();
+        if (used[curVertex]) {
+            continue;
+        }
+        used[curVertex] = 1;
+        weight += dist;
+        for (int i = 0; i < graph[curVertex].size(); ++i) {
+            int u = graph[curVertex][i].first;
+            int curDist = graph[curVertex][i].second;
+            if (not used[u]) {
+                q.push({u, curDist});
+            }
+        }
+    }
+    return weight;
+}
+
+int main() {
+    int n, m;
+    std::cin >> n >> m;
+    std::vector<std::vector<std::pair<int, int>>> graph = input(n, m);
+    std::cout << prima(graph);
+    return 0;
+}
