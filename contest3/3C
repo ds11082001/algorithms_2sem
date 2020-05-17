@@ -1,0 +1,92 @@
+#include <algorithm>
+#include <iostream>
+#include <vector>
+
+// По сути надо решить задачу: найти миностов в полном графе + с предложенными
+// ребрами. Можно задачу оптимизировать: проводить ребра, равные сумме
+// стоимостей вершин <=> это ребро из минимальной вершины, т. к., например
+// в остов нам невыгодно брать ребро, вершины которого имеют стоимости 2 и 3,
+// когда есть вершина стоимостью 1. Миностов в таком графе найдем с помощью
+// алго Крускала.
+
+const long long max_cost = 1e15;
+
+int get(int v, std::vector<int> &parent) {
+    if (parent[v] == -1) {
+        return v;
+    } else {
+        return get(parent[v], parent);
+    }
+}
+
+void unite(int u, int v, std::vector<int> &parent, std::vector<int> &size) {
+    u = get(u, parent);
+    v = get(v, parent);
+    if (size[u] < size[v]) {
+        std::swap(u, v);
+    }
+    parent[v] = u;
+    size[u] += size[v];
+}
+
+bool fromOneDSU(int u, int v, std::vector<int> &parent) {
+    return get(u, parent) == get(v, parent);
+}
+
+std::vector<std::pair<long long, std::pair<int, int>>> input(int n, int m) {
+    std::vector<long long> cost_of_vertex;
+    long long min_cost = max_cost;
+    int min_vertex = 0;
+    long long cur_cost;
+    for (int i = 0; i < n; ++i) {
+        std::cin >> cur_cost;
+        cost_of_vertex.push_back(cur_cost);
+        if (cur_cost < min_cost) {
+            min_cost = cur_cost;
+            min_vertex = i;
+        }
+    }
+    int v, to;
+    std::vector<std::pair<long long, std::pair<int, int>>> graph;
+    for (int i = 0; i < n; ++i) {
+        graph.push_back({cost_of_vertex[min_vertex] + cost_of_vertex[i], std::make_pair(min_vertex, i)});
+    }
+    for (int i = 0; i < m; ++i) {
+        std::cin >> v >> to >> cur_cost;
+        --v;
+        --to;
+        graph.push_back({cur_cost, std::make_pair(v, to)});
+    }
+
+    return graph;
+}
+
+long long cruscal(std::vector<std::pair<long long, std::pair<int, int>>> &graph, int n) {
+    long long weight = 0;
+    std::vector<int> parent(n, -1);
+    std::vector<int> size(n, 1);
+    std::sort(graph.begin(), graph.end());
+    int i = 0;
+    int count_of_DSU = n;
+    while (count_of_DSU > 1) {
+        long long cost = graph[i].first;
+        int u = graph[i].second.first;
+        int v = graph[i].second.second;
+        ++i;
+        if (fromOneDSU(u, v, parent)) {
+            continue;
+        }
+        unite(u, v, parent, size);
+        weight += cost;
+        --count_of_DSU;
+    }
+    return weight;
+}
+
+int main() {
+    int n, m;
+    std::cin >> n >> m;
+    std::vector<std::pair<long long, std::pair<int, int>>> graph = input(n, m);
+    std::cout << cruscal(graph, n);
+    return 0;
+}
