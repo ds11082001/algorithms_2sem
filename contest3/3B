@@ -1,0 +1,68 @@
+#include <algorithm>
+#include <iostream>
+#include <vector>
+
+
+int get(int v, std::vector<int> &parent) {
+    if (parent[v] == -1) {
+        return v;
+    } else {
+        return get(parent[v], parent);
+    }
+}
+
+void unite(int u, int v, std::vector<int> &parent, std::vector<int> &size) {
+    u = get(u, parent);
+    v = get(v, parent);
+    if (size[u] < size[v]) {
+        std::swap(u, v);
+    }
+    parent[v] = u;
+    size[u] += size[v];
+}
+
+bool fromOneDSU(int u, int v, std::vector<int> &parent) {
+    return get(u, parent) == get(v, parent);
+}
+
+std::vector<std::vector<int>> input(int m) {
+    int v, to, cost;
+    std::vector<std::vector<int>> graph;
+    for (int i = 0; i < m; ++i) {
+        std::cin >> v >> to >> cost;
+        --v;
+        --to;
+        graph.push_back({cost, v, to});
+    }
+    return graph;
+}
+
+int cruscal(std::vector<std::vector<int>> &graph, int n) {
+    int weight = 0;
+    std::vector<int> parent(n, -1);
+    std::vector<int> size(n, 1);
+    std::sort(graph.begin(), graph.end());
+    int i = 0;
+    int count_of_DSU = n;
+    while(count_of_DSU > 1) {
+        int cost = graph[i][0];
+        int u = graph[i][1];
+        int v = graph[i][2];
+        ++i;
+        if (fromOneDSU(u, v, parent)) {
+            continue;
+        }
+        unite(u, v, parent, size);
+        weight += cost;
+        --count_of_DSU;
+    }
+    return weight;
+}
+
+int main() {
+    int n, m;
+    std::cin >> n >> m;
+    std::vector<std::vector<int>> graph = input(m);
+    std::cout << cruscal(graph, n);
+    return 0;
+}
