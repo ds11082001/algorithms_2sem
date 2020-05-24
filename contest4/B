@@ -1,0 +1,126 @@
+#include <iostream>
+#include <vector>
+
+// Построим ДО, в листе i которого будет сколько билетов продано на пути 
+// [i, i + 1]. Тогда фактически в последних m строчках от нас требуется 
+// прибавление на отрезке [s, t - 1], где s - вершина посадки, а t - вершина
+// выхода пассажиров. Операция невозможна <=> на пути максимум на отрезке
+// [s, t - 1] + кол-во запрашиваемых билетов > вместимости.
+
+
+using std::vector;
+
+struct Vertex {
+    int add;
+    int maximum;
+    size_t size;
+
+    Vertex(int x = 0) {
+        size = 1;
+        add = 0;
+        maximum = x;
+    }
+
+    Vertex(Vertex x, Vertex y) {
+        size = x.size + y.size;
+        add = 0;
+        maximum = std::max(x.maximum, y.maximum);
+    }
+};
+
+void buildTree(vector<Vertex> &v, int n) {
+    int pow = 0;
+    int sz = n;
+    --sz;
+    while (sz > 0) {
+        sz /= 2;
+        ++pow;
+    }
+    sz = 1 << (pow);
+    v.resize(2 * sz);
+    int ticket;
+    for (auto i = 0; i < n - 1; ++i) {
+        std::cin >> ticket;
+        v[sz + i].maximum = ticket;
+    }
+    for (auto i = n; i < sz; ++i) {
+        v[sz + i].maximum = 0;
+    }
+    for (auto i = sz - 1; i > 0; --i) {
+        v[i] = Vertex(v[2 * i], v[2 * i + 1]);
+    }
+}
+
+void push(vector<Vertex> &tree, int v) {
+    if (tree[v].add != 0) {
+        if (4 * v < tree.size()) {
+            tree[2 * v].add += tree[v].add;
+            tree[2 * v + 1].add += tree[v].add;
+        }
+        tree[2 * v].maximum += tree[v].add;
+        tree[2 * v + 1].maximum += tree[v].add;
+        tree[v].add = 0;
+    }
+}
+
+int getMaximum(vector<Vertex> &tree, int v, int tl, int tr, int l, int r) {
+    push(tree, v);
+    if (tl == l && tr == r) {
+        return tree[v].maximum;
+    }
+    int tm = (tl + tr) / 2;
+    if (tm >= r) {
+        return getMaximum(tree, 2 * v, tl, tm, l, r);
+    }
+    if (tm < l) {
+        return getMaximum(tree, 2 * v + 1, tm + 1, tr, l, r);
+    }
+    return std::max(getMaximum(tree, 2 * v, tl, tm, l, tm),
+            getMaximum(tree, 2 * v + 1, tm + 1, tr, tm + 1, r));
+}
+
+void updateTree(vector<Vertex> &tree, int v, int tl, int tr, int l, int r, int value, int i) {
+    push(tree, v);
+    if (tl == l && tr == r) {
+        if (2 * v < tree.size()) {
+            tree[v].add += value;
+        }
+        tree[v].maximum += value;
+        return;
+    }
+    int tm = (tl + tr) / 2;
+    if (l <= tm) {
+        updateTree(tree, 2 * v, tl, tm, l, std::min(r, tm), value, i);
+        tree[v].maximum = std::max(tree[2 * v].maximum, tree[2 * v + 1].maximum);
+    }
+    if (r > tm) {
+        updateTree(tree, 2 * v + 1, tm + 1, tr, std::max(tm + 1, l), r, value, i);
+        tree[v].maximum = std::max(tree[2 * v].maximum, tree[2 * v + 1].maximum);
+    }
+}
+
+void findAnswer(vector<Vertex> &tree, int m, int capacity) {
+    int sz = tree.size() / 2;
+    int entry, exit, tickets;
+    for (auto i = 0; i < m; ++i) {
+        std::cin >> entry >> exit >> tickets;
+        --exit;
+        int x = getMaximum(tree, 1, 0, sz - 1, entry, exit);
+        if (getMaximum(tree, 1, 0, sz - 1, entry, exit) + tickets > capacity) {
+            std::cout << i << " ";
+            continue;
+        }
+        updateTree(tree, 1, 0, sz - 1, entry, exit, tickets, i);
+    }
+}
+
+int main() {
+    int n;
+    std::cin >> n;
+    vector<Vertex> tree;
+    buildTree(tree, n);
+    int capacity, m;
+    std::cin >> capacity >> m;
+    findAnswer(tree, m, capacity);
+    return 0;
+}
