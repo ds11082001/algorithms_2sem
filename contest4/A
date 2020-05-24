@@ -1,0 +1,96 @@
+#include <iostream>
+#include <vector>
+
+// Найдем по ST позицию минимального элемента, потом найдем минимум слева и 
+// справа от минимума и возьмем наименьший из них. Это и будет искомый второй
+// минимум.
+
+
+using std::vector;
+
+void input(int n, int m, vector<int> &numbers, vector<std::pair<int, int>> &ranges) {
+    int number;
+    for (int i = 0; i < n; ++i) {
+        std::cin >> number;
+        numbers.push_back(number);
+    }
+    int l, r;
+    for (int i = 0; i < m; ++i) {
+        std::cin >> l >> r;
+        ranges.emplace_back(l, r);
+    }
+}
+
+void countLogarithms(int n, vector<int> &logarithms) {
+    logarithms.push_back(0);
+    logarithms.push_back(0);
+    int cur_pow = 0;
+    int cur_value = 2;
+    for (int i = 2; i <= n; ++i) {
+        if (i / cur_value > 0) {
+            ++cur_pow;
+            cur_value *= 2;
+        }
+        logarithms.push_back(cur_pow);
+    }
+}
+
+vector<vector<std::pair<int, int>>> sparseTable(const vector<int> &numbers, vector<int> &logarithms) {
+    int n = numbers.size();
+    countLogarithms(n, logarithms);
+    int max_pow = logarithms.back() + 1;
+    vector<vector<std::pair<int, int>>> st(max_pow + 1, vector<std::pair<int, int>>(n, {INT32_MAX, -1}));
+    for (auto i = 0; i < n; ++i) {
+        st[0][i].first = numbers[i];
+        st[0][i].second = i;
+    }
+    for (int k = 1; k < max_pow; ++k) {
+        for (int i = 0; i < n; ++i) {
+            if (i + (1 << k) > n) {
+                break;
+            }
+            st[k][i] = std::min(st[k - 1][i], st[k - 1][i + (1 << (k - 1))]);
+        }
+    }
+    return st;
+}
+
+std::pair<int, int> findMin(int l, int r, const vector<vector<std::pair<int, int>>> &st,
+        const vector<int> &logarithms) {
+    if (l > r) {
+        return {INT32_MAX, -1};
+    }
+    if (l == r) {
+        return st[0][l];
+    }
+    int len = r - l + 1;
+    int pow = logarithms[len];
+    return std::min(st[pow][l], st[pow][r - (1 << pow) + 1]);
+}
+
+void findSecondStatistics(const vector<std::pair<int, int>> &ranges, const vector<int> &logarithms,
+                          const vector<vector<std::pair<int, int>>> &st) {
+    int m = ranges.size();
+    int l, r;
+    int minimum_position, left_minimum, right_minimum;
+    for (int i = 0; i < m; ++i) {
+        l = ranges[i].first - 1;
+        r = ranges[i].second - 1;
+        minimum_position = findMin(l, r, st, logarithms).second;
+        left_minimum = findMin(l, minimum_position - 1, st, logarithms).first;
+        right_minimum = findMin(minimum_position + 1, r, st, logarithms).first;
+        std::cout << std::min(left_minimum, right_minimum) << std::endl;
+    }
+}
+
+int main() {
+    int n, m;
+    std::cin >> n >> m;
+    vector<int> numbers;
+    vector<std::pair<int, int>> ranges;
+    input(n, m, numbers, ranges);
+    vector<int> logarithms;
+    vector<vector<std::pair<int, int>>> st = sparseTable(numbers, logarithms);
+    findSecondStatistics(ranges, logarithms, st);
+    return 0;
+}
