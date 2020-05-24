@@ -1,0 +1,117 @@
+#include <iostream>
+#include <vector>
+
+// Построим ДО, в листах которого будет яркость. Тогда у нашего ДО есть
+// операции: запрос минимума на отрезке и изменение значения на отрезке.
+
+using std::vector;
+
+int MAX_COLOR = 1000;
+
+struct Picture {
+    int brightness;
+    std::vector<int> add;
+
+    Picture(int r = MAX_COLOR, int g = MAX_COLOR, int b = MAX_COLOR) : brightness(r + g + b), add(3, MAX_COLOR) {}
+
+    Picture(const Picture &x, const Picture &y) {
+        if (x.brightness <= y.brightness) {
+            *this = x;
+        } else {
+            *this = y;
+        }
+    }
+};
+
+void buildTree(vector<Picture> &v, int n) {
+    int pow = 0;
+    int sz = n;
+    --sz;
+    while (sz > 0) {
+        sz /= 2;
+        ++pow;
+    }
+    sz = 1 << (pow);
+    v.resize(2 * sz);
+    int r, g, b;
+    for (auto i = 0; i < n; ++i) {
+        std::cin >> r >> g >> b;
+        v[sz + i] = Picture(r, g, b);
+    }
+    for (auto i = n; i < sz; ++i) {
+        v[sz + i] = Picture(MAX_COLOR, MAX_COLOR, MAX_COLOR);
+    }
+    for (auto i = sz - 1; i > 0; --i) {
+        v[i] = Picture(v[2 * i], v[2 * i + 1]);
+    }
+}
+
+void push(vector<Picture> &canvas, int v) {
+    if (canvas[v].add != vector{MAX_COLOR, MAX_COLOR, MAX_COLOR}) {
+        if (4 * v < canvas.size()) {
+            canvas[2 * v].add = canvas[v].add;
+            canvas[2 * v + 1].add = canvas[v].add;
+        }
+        canvas[2 * v].brightness = canvas[v].brightness;
+        canvas[2 * v + 1].brightness = canvas[v].brightness;
+        canvas[v].add = {MAX_COLOR, MAX_COLOR, MAX_COLOR};
+    }
+}
+
+int getMinimum(vector<Picture> &canvas, int v, int tl, int tr, int l, int r) {
+    push(canvas, v);
+    if (tl == l && tr == r) {
+        return canvas[v].brightness;
+    }
+    int tm = (tl + tr) / 2;
+    if (tm >= r) {
+        return getMinimum(canvas, 2 * v, tl, tm, l, r);
+    }
+    if (tm < l) {
+        return getMinimum(canvas, 2 * v + 1, tm + 1, tr, l, r);
+    }
+    return std::min(getMinimum(canvas, 2 * v, tl, tm, l, tm),
+                    getMinimum(canvas, 2 * v + 1, tm + 1, tr, tm + 1, r));
+}
+
+void updateTree(vector<Picture> &canvas, int v, int tl, int tr, int l, int r, int red, int green, int blue) {
+    push(canvas, v);
+    if (tl == l && tr == r) {
+        if (2 * v < canvas.size()) {
+            canvas[v].add = {red, green, blue};
+        }
+        canvas[v].brightness = red + green + blue;
+        return;
+    }
+    int tm = (tl + tr) / 2;
+    if (l <= tm) {
+        updateTree(canvas, 2 * v, tl, tm, l, std::min(r, tm), red, green, blue);
+        canvas[v].brightness = std::min(canvas[2 * v].brightness, canvas[2 * v + 1].brightness);
+    }
+    if (r > tm) {
+        updateTree(canvas, 2 * v + 1, tm + 1, tr, std::max(tm + 1, l), r, red, green, blue);
+        canvas[v].brightness = std::min(canvas[2 * v].brightness, canvas[2 * v + 1].brightness);
+    }
+}
+
+void findAnswer(vector<Picture> &canvas, int k) {
+    int sz = canvas.size() / 2;
+    int c, d, r, g, b, e, f;
+    for (auto i = 0; i < k; ++i) {
+        std::cin >> c >> d >> r >> g >> b >> e >> f;
+        updateTree(canvas, 1, 0, sz - 1, c, d, r, g, b);
+        int x = getMinimum(canvas, 1, 0, sz - 1, e, f);
+        std::cout << x << " ";
+    }
+}
+
+int main() {
+    int n;
+    std::cin >> n;
+    vector<Picture> canvas;
+    buildTree(canvas, n);
+    int m;
+    std::cin >> m;
+    findAnswer(canvas, m);
+    return 0;
+}
