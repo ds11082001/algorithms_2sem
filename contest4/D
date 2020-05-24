@@ -1,0 +1,136 @@
+#include <iostream>
+#include <vector>
+
+// Запустим дфс из корня, узнаем глубину вершины и время входа, выхода и
+// любого прохода через вершины. Утверждается, что LCA(u, v) = 
+min_height[in(u), in(v)] (ну или наоборот, если in(u) > in(v)). Решим задачу
+// через ST по вершинам из массива in_and_out, определяя минимум по высоте.
+
+using std::vector;
+
+void input(int n, vector<vector<int>> &graph, vector<int> &parents) {
+    parents[0] = -1;
+    int cur_parent;
+    for (auto i = 1; i < n; ++i) {
+        std::cin >> cur_parent;
+        graph[cur_parent].push_back(i);
+        parents[i] = cur_parent;
+    }
+}
+
+void dfs(int i, int v, vector<vector<int>> &graph, vector<int> &in_and_out, vector<int> &height) {
+    in_and_out.push_back(v);
+    for (auto u : graph[v]) {
+        height[u] = height[v] + 1;
+        dfs(i, u, graph, in_and_out, height);
+        in_and_out.push_back(v);
+    }
+    in_and_out.push_back(v);
+}
+
+void buildIn(vector<int> &in_and_out, vector<int> &in) {
+    for (auto i = 0; i < in_and_out.size(); ++i) {
+        if (i < in[in_and_out[i]]) {
+            in[in_and_out[i]] = i;
+        }
+    }
+}
+
+void countLogarithms(int n, vector<int> &logarithms) {
+    logarithms.push_back(0);
+    logarithms.push_back(0);
+    int cur_pow = 0;
+    int cur_value = 2;
+    for (int i = 2; i <= n; ++i) {
+        if (i / cur_value > 0) {
+            ++cur_pow;
+            cur_value *= 2;
+        }
+        logarithms.push_back(cur_pow);
+    }
+}
+
+vector<vector<std::pair<int, int>>> sparseTable(const vector<int> &height,
+                                                const vector<int> &in_and_out, vector<int> &logarithms) {
+    int n = in_and_out.size();
+    countLogarithms(n, logarithms);
+    int max_pow = logarithms.back() + 1;
+    vector<vector<std::pair<int, int>>>
+            st(max_pow + 1, vector<std::pair<int, int>>(n, {INT32_MAX, -1}));
+    for (auto i = 0; i < n; ++i) {
+        st[0][i].first = height[in_and_out[i]];
+        st[0][i].second = in_and_out[i];
+    }
+    for (auto k = 1; k < max_pow; ++k) {
+        for (auto i = 0; i < n; ++i) {
+            if (i + (1 << k) > n) {
+                break;
+            }
+            st[k][i] = std::min(st[k - 1][i], st[k - 1][i + (1 << (k - 1))]);
+        }
+    }
+    return st;
+}
+
+std::pair<int, int> findMinimum(int l, int r, const vector<vector<std::pair<int, int>>> &st,
+                                const vector<int> &logarithms) {
+    if (l > r) {
+        return {INT32_MAX, -1};
+    }
+    if (l == r) {
+        return st[0][l];
+    }
+    int len = r - l + 1;
+    int pow = logarithms[len];
+    return std::min(st[pow][l], st[pow][r - (1 << pow) + 1]);
+}
+
+long long findAnswer(int n, int m, long long a1, long long a2, long long x, long long y, long long z,
+                     const vector<vector<std::pair<int, int>>> &st, const vector<int> &logarithms,
+                     const vector<int> &in, const vector<int> &height) {
+    int v;
+    if (in[a1] > in[a2]) {
+        v = findMinimum(in[a2], in[a1], st, logarithms).second;
+    } else {
+        v = findMinimum(in[a1], in[a2], st, logarithms).second;
+    }
+    long long sum = 0;
+    sum += v;
+    long long a3, a4;
+    for (auto i = 1; i < m; ++i) {
+        a3 = (x * a1 + y * a2 + z) % n;
+        a4 = (x * a2 + y * a3 + z) % n;
+        if (in[(a3 + v) % n] > in[a4]) {
+            v = findMinimum(in[a4], in[(a3 + v) % n], st, logarithms).second;
+        } else {
+            v = findMinimum(in[(a3 + v) % n], in[a4], st, logarithms).second;
+        }
+        sum += v;
+        a1 = a3;
+        a2 = a4;
+    }
+    return sum;
+}
+
+int main() {
+    int n, m;
+    std::cin >> n >> m;
+    vector<int> parents(n);
+    vector<vector<int>> graph(n);
+    input(n, graph, parents);
+    long long a1, a2;
+    long long x, y, z;
+    std::cin >> a1 >> a2;
+    std::cin >> x >> y >> z;
+    vector<int> in_and_out;
+    vector<int> height(n, 0);
+    int i = 0;
+    dfs(i, 0, graph, in_and_out, height);
+    vector<int> logarithms;
+    vector<vector<std::pair<int, int>>> st = sparseTable(height, in_and_out, logarithms);
+    vector<int> in(n, INT32_MAX);
+    buildIn(in_and_out, in);
+    long long sum = findAnswer(n, m, a1, a2, x, y, z, st, logarithms, in, height);
+    std::cout << sum;
+    return 0;
+}
