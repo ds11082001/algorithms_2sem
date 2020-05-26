@@ -1,0 +1,530 @@
+#include <iterator>
+
+
+template<bool flag, class IsTrue, class IsFalse>
+struct choose;
+
+template<class IsTrue, class IsFalse>
+struct choose<true, IsTrue, IsFalse> {
+    typedef IsTrue type;
+};
+
+template<class IsTrue, class IsFalse>
+struct choose<false, IsTrue, IsFalse> {
+    typedef IsFalse type;
+};
+
+
+template<typename T>
+class List {
+private:
+    struct Node {
+    public:
+        T *value;
+        Node *prev;
+        Node *next;
+
+        explicit Node(Node *prev = nullptr, Node *next = nullptr) : prev(prev), next(next) {
+            this->value = nullptr;
+        }
+
+        explicit Node(const T &value = T(), Node *prev = nullptr, Node *next = nullptr) :
+                prev(prev), next(next) {
+            this->value = new T(value);
+        }
+
+        explicit Node(T &&value, Node *prev, Node *next) : prev(prev), next(next) {
+            this->value = new T(std::move(value));
+        }
+
+    };
+
+    size_t sz;
+    Node *first;
+    Node *last;
+    Node *end_node = new Node(nullptr, nullptr);
+public:
+    typedef T value_type;
+    typedef size_t difference_type;
+    typedef T *pointer;
+    typedef T &reference;
+    typedef std::bidirectional_iterator_tag iterator_category;
+
+    template<bool IsConst = false>
+    class Iterator {
+    private:
+        using return_type = typename choose<IsConst, const T &, T &>::type;
+    public:
+        typedef T value_type;
+        typedef size_t difference_type;
+        typedef T *pointer;
+        typedef T &reference;
+        typedef std::bidirectional_iterator_tag iterator_category;
+
+        Node *ptr;
+
+        explicit Iterator(Node *ptr) : ptr(ptr) {}
+
+        Iterator &operator=(const Iterator &a) {
+            ptr = a.ptr;
+            return *this;
+        };
+
+        Iterator &operator++() {
+            ptr = ptr->next;
+            return *this;
+        }
+
+        Iterator operator++(int) const {
+            Iterator tmp = *this;
+            ptr = ptr->next;
+            return tmp;
+        }
+
+        Iterator &operator--() {
+            ptr = ptr->prev;
+            return *this;
+        }
+
+        Iterator operator--(int) const {
+            Iterator tmp = *this;
+            ptr = ptr->prev;
+            return tmp;
+        }
+
+        return_type operator*() {
+            return *(ptr->value);
+        }
+
+        template<bool B>
+        bool operator==(const Iterator<B> &other) const {
+            return ptr == other.ptr;
+        }
+
+        template<bool B>
+        bool operator!=(const Iterator<B> &other) const {
+            return ptr != other.ptr;
+        }
+    };
+
+    using iterator = Iterator<false>;
+    using const_iterator = Iterator<true>;
+    using reverse_iterator = std::reverse_iterator<Iterator<false>>;
+    using const_reverse_iterator = std::reverse_iterator<Iterator<true>>;
+
+    List() : sz(0), first(nullptr), last(nullptr), end_node(new Node(nullptr, nullptr)) {};
+
+    explicit List(size_t count, const T &value = T()) {
+        if (count == 0) {
+            sz = 0;
+            first = nullptr;
+            last = nullptr;
+            end_node = new Node(nullptr, nullptr);
+        } else {
+            sz = count;
+            first = new Node(value, nullptr, nullptr);
+            last = first;
+            for (size_t i = 1; i < count; ++i) {
+                last->next = new Node(value, last, nullptr);
+                last = last->next;
+            }
+            end_node->prev = last;
+            last->next = end_node;
+        }
+    }
+
+    List(const List &a) {
+        if (a.sz == 0) {
+            sz = 0;
+            first = nullptr;
+            last = nullptr;
+        } else {
+            sz = a.sz;
+            first = new Node(*(a.first->value));
+            last = first;
+            Node *cur_node_in_a = a.first;
+            for (size_t i = 1; i < a.sz; ++i) {
+                cur_node_in_a = cur_node_in_a->next;
+                last->next = new Node(*(cur_node_in_a->value), last, nullptr);
+                last = last->next;
+            }
+            end_node->prev = last;
+            last->next = end_node;
+        }
+    }
+
+    List(List &&a) noexcept {
+        sz = a.sz;
+        first = a.first;
+        last = a.last;
+        end_node = a.end_node;
+        a.sz = 0;
+        a.first = nullptr;
+        a.last = nullptr;
+        a.end_node = new Node(nullptr, nullptr);
+    }
+
+    ~List() {
+        Node *cur_ptr = first;
+        while (cur_ptr != nullptr) {
+            Node *next_ptr = cur_ptr->next;
+            if (cur_ptr->value != nullptr) {
+                delete cur_ptr->value;
+            }
+            delete cur_ptr;
+            cur_ptr = next_ptr;
+        }
+    }
+
+    List &operator=(const List &a) {
+        if (this == &a) {
+            return *this;
+        }
+        List tmp(a);
+        swap(*this, tmp);
+
+        return *this;
+    }
+
+    List &operator=(List &&a) noexcept {
+        if (this == &a) {
+            return *this;
+        }
+        swap(*this, a);
+        a.sz = 0;
+        a.first = nullptr;
+        a.last = nullptr;
+        a.end_node = nullptr;
+        return *this;
+    }
+
+    template<typename Type>
+    friend void swap(List<Type> &a, List<Type> &b);
+
+    size_t size() {
+        return sz;
+    }
+
+    T &front() {
+        return *(first->value);
+    }
+
+    T &back() {
+        return *(last->value);
+    }
+
+    void clear() {
+        Node *tmp = first;
+        if (tmp == nullptr) {
+            return;
+        }
+        while (tmp != end_node) {
+            Node *cur_next = tmp->next;
+            if (tmp->value != nullptr) {
+                delete tmp->value;
+            }
+            delete tmp;
+            tmp = cur_next;
+        }
+        first = nullptr;
+        last = nullptr;
+        sz = 0;
+        end_node->prev = nullptr;
+    }
+
+    bool empty() {
+        return sz == 0;
+    }
+
+    iterator begin() {
+        if (sz != 0) {
+            return iterator(first);
+        }
+        return end();
+    }
+
+    const_iterator cbegin() {
+        if (sz != 0) {
+            return const_iterator(first);
+        }
+        return cend();
+    }
+
+    iterator end() {
+        return iterator(end_node);
+    }
+
+    const_iterator cend() {
+        return const_iterator(end_node);
+    }
+
+    void push_back(const T &value) {
+        if (sz > 0) {
+            last->next = new Node(value, last, nullptr);
+            last = last->next;
+        } else {
+            first = new Node(value, nullptr, nullptr);
+            last = first;
+        }
+        end_node->prev = last;
+        last->next = end_node;
+        ++sz;
+    }
+
+    void push_back(T &&value) {
+        if (sz > 0) {
+            last->next = new Node(std::move(value), last, nullptr);
+            last = last->next;
+        } else {
+            first = new Node(std::move(value), nullptr, nullptr);
+            last = first;
+        }
+        end_node->prev = last;
+        last->next = end_node;
+        ++sz;
+    }
+
+    void push_front(const T &value) {
+        if (sz > 0) {
+            first->prev = new Node(value, nullptr, first);
+            first = first->prev;
+        } else {
+            first = new Node(value, nullptr, nullptr);
+            last = first;
+            end_node->prev = last;
+            last->next = end_node;
+        }
+        ++sz;
+    }
+
+    void push_front(T &&value) {
+        if (sz > 0) {
+            first->prev = new Node(std::move(value), nullptr, first);
+            first = first->prev;
+        } else {
+            first = new Node(std::move(value), nullptr, nullptr);
+            last = first;
+            end_node->prev = last;
+            last->next = end_node;
+        }
+        ++sz;
+    }
+
+    void pop_back() {
+        if (sz > 1) {
+            last = last->prev;
+            delete last->next;
+            end_node->prev = last;
+            last->next = end_node;
+            --sz;
+        } else {
+            clear();
+        }
+    }
+
+    void pop_front() {
+        if (sz > 1) {
+            first = first->next;
+            delete first->prev;
+            first->prev = nullptr;
+            --sz;
+        } else {
+            clear();
+        }
+    }
+
+    template<bool B>
+    iterator insert(Iterator<B> it, const T &value) {
+        if (it.ptr->prev == nullptr && it.ptr->next == nullptr) {
+            Node *tmp = new Node(value, nullptr, end_node);
+            first = tmp;
+            last = tmp;
+            end_node->prev = tmp;
+            ++sz;
+            return iterator(tmp);
+        }
+        Node *tmp = new Node(value, it.ptr->prev, it.ptr);
+        if (it.ptr->prev != nullptr) {
+            it.ptr->prev->next = tmp;
+        }
+        if (it.ptr == first) {
+            first->prev = tmp;
+            first = tmp;
+        } else if (it.ptr == end_node) {
+            last = tmp;
+            end_node->prev = last;
+        }
+        ++sz;
+        iterator that(tmp);
+        return that;
+    }
+
+    template<bool B>
+    iterator insert(Iterator<B> it, T &&value) {
+        if (it.ptr->prev == nullptr && it.ptr->next == nullptr) {
+            Node *tmp = new Node(std::move(value), nullptr, end_node);
+            first = tmp;
+            last = tmp;
+            end_node->prev = tmp;
+            ++sz;
+            return iterator(tmp);
+        }
+        Node *tmp = new Node(std::move(value), it.ptr->prev, it.ptr);
+        if (it.ptr->prev != nullptr) {
+            it.ptr->prev->next = tmp;
+        }
+
+        if (it.ptr == first) {
+            first->prev = tmp;
+            first = tmp;
+        } else if (it.ptr == end_node) {
+            last = tmp;
+            end_node->prev = last;
+        }
+        ++sz;
+        iterator that(tmp);
+        return that;
+    }
+
+    template<typename InputIt, bool B>
+    iterator insert(Iterator<B> it, InputIt a, InputIt b) {
+        if (a == b) {
+            return it;
+        }
+        InputIt cur_a = a;
+        InputIt cur_b = b;
+        iterator that = insert(it, *cur_a);
+        ++cur_a;
+        iterator cur = that;
+        while (cur_a != cur_b) {
+            cur = insert(cur, *cur_a);
+            ++cur_a;
+        }
+        return that;
+    }
+
+    template<bool B>
+    iterator erase(Iterator<B> it) {
+        if (it.ptr->prev != nullptr) {
+            it.ptr->prev->next = it.ptr->next;
+        }
+        if (it.ptr->next != nullptr) {
+            it.ptr->next->prev = it.ptr->prev;
+        }
+        if (it.ptr == first) {
+            first = first->next;
+        }
+        if (it.ptr == last) {
+            last = last->prev;
+        }
+        --sz;
+        auto that = iterator(it.ptr->next);
+        delete it.ptr;
+        if (first == end_node) {
+            first = nullptr;
+        }
+        if (last == end_node) {
+            last = nullptr;
+        }
+        return that;
+    }
+
+    template<bool B>
+    iterator erase(Iterator<B> a, Iterator<B> b) {
+        while (a != b) {
+            auto c = Iterator<B>(a.ptr->next);
+            erase(a);
+            a = c;
+        }
+        return a;
+    }
+
+    template<typename... Args, bool B>
+    iterator emplace(Iterator<B> pos, Args &&... args) {
+        Node *tmp;
+        if (pos.ptr->prev == nullptr && pos.ptr->next == nullptr) {
+            tmp = new Node(std::forward<Args>(args)..., nullptr, end_node);
+            first = tmp;
+            last = tmp;
+            end_node->prev = tmp;
+            ++sz;
+            return iterator(tmp);
+        }
+        tmp = new Node(std::forward<Args>(args)..., pos.ptr->prev, pos.ptr);
+        if (pos.ptr->prev != nullptr) {
+            pos.ptr->prev->next = tmp;
+        }
+        if (pos.ptr->next) {
+            pos.ptr->prev = tmp;
+        }
+        if (pos.ptr == first) {
+            first->prev = tmp;
+            first = tmp;
+        } else if (pos.ptr == end_node) {
+            last = tmp;
+            end_node->prev = last;
+        }
+        ++sz;
+        iterator it = Iterator<false>(tmp);
+        return it;
+    }
+
+    template<typename... Args>
+    iterator emplace_back(Args &&... args) {
+        return emplace(const_iterator(end_node), std::forward<Args>(args)...);
+    }
+
+    template<typename... Args>
+    iterator emplace_front(Args &&... args) {
+        return emplace(const_iterator(first), std::forward<Args>(args)...);
+    }
+
+    void reverse() {
+        auto a = begin();
+        auto b = end();
+        while (a != b) {
+            if (a == --b)
+                break;
+            std::swap(a.ptr->value, b.ptr->value);
+            ++a;
+        }
+    }
+
+    void unique() {
+        Node *ptr = first;
+        while (ptr != end_node && ptr->next != end_node) {
+            if (*(ptr->value) == *(ptr->next->value)) {
+                erase(const_iterator(ptr->next));
+            } else {
+                ptr = ptr->next;
+            }
+        }
+    }
+
+    void print() {
+        Node *cur_ptr = first;
+        if (first == nullptr) {
+            return;
+        }
+        while (cur_ptr != end_node) {
+            std::cout << cur_ptr->value << " ";
+            cur_ptr = cur_ptr->next;
+        }
+        std::cout << std::endl;
+    }
+
+    std::remove_reference_t<T> &&move() {
+        return static_cast<std::remove_reference_t<T> &&>(this);
+    }
+
+};
+
+
+template<typename T>
+void swap(List<T> &a, List<T> &b) {
+    std::swap(a.sz, b.sz);
+    std::swap(a.first, b.first);
+    std::swap(a.last, b.last);
+    std::swap(a.end_node, b.end_node);
+}
+ 
